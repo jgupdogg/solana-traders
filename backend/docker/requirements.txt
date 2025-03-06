@@ -1,8 +1,0 @@
-fastapi
-pydantic
-uvicorn
-sqlalchemy
-snowflake-sqlalchemy
-boto3
-mangum
-python-dotenv

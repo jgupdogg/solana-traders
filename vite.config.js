@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Base path for production deployment
+  base: '/solana-traders/',
   plugins: [
     react({
       // This enables jsx in .js files
@@ -15,6 +17,6 @@ export default defineConfig({
   // If you were using process.env in your code, you might need this
   define: {
     // This allows "process.env.VITE_API_BASE_URL" to work in your code
-    "process.env": {},
-  },
+    "process.env": {}
+  }
 });
