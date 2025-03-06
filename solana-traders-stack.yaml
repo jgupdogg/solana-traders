@@ -124,16 +124,15 @@ Resources:
                 Resource:
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/solana-traders/snowflake/*"
 
-  # Lambda Function with placeholder image
+  # Lambda Function with updated image reference
   LambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub "${AWS::StackName}-function"
       PackageType: Image
-      # Using a placeholder image from ECR public until we deploy our own
       Code:
-        # This is a minimal public Python image as placeholder
-        ImageUri: public.ecr.aws/lambda/python:3.9
+        # Reference the image you pushed to ECR
+        ImageUri: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}:latest"
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 30
       MemorySize: 256

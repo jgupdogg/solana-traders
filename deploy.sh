@@ -13,8 +13,15 @@ STACK_NAME="solana-traders-stack"
 ENVIRONMENT="dev"
 S3_BUCKET_NAME="solana-traders-dashboard-$TIMESTAMP"  # Making bucket name unique
 ECR_REPOSITORY_NAME="solana-traders-api"
+AWS_REGION=$(aws configure get region)
+if [ -z "$AWS_REGION" ]; then
+    AWS_REGION="us-east-1"  # Default to us-east-1 if no region found
+fi
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
 echo -e "${YELLOW}Using unique S3 bucket name: $S3_BUCKET_NAME${NC}"
+echo -e "${YELLOW}Using AWS Region: $AWS_REGION${NC}"
+echo -e "${YELLOW}Using AWS Account: $AWS_ACCOUNT_ID${NC}"
 
 # Check if the stack exists in ROLLBACK_COMPLETE state (failed creation)
 if aws cloudformation describe-stacks --stack-name $STACK_NAME 2>/dev/null | grep -q "ROLLBACK_COMPLETE"; then
@@ -36,6 +43,31 @@ function get_failure_reason() {
     echo -e "${YELLOW}For more details, check the CloudFormation console or run:${NC}"
     echo -e "aws cloudformation describe-stack-events --stack-name $STACK_NAME"
 }
+
+# Create ECR repository if it doesn't exist
+echo -e "${GREEN}Creating or verifying ECR repository...${NC}"
+if ! aws ecr describe-repositories --repository-names $ECR_REPOSITORY_NAME 2>/dev/null; then
+    aws ecr create-repository --repository-name $ECR_REPOSITORY_NAME
+    echo -e "${GREEN}ECR repository created!${NC}"
+else
+    echo -e "${GREEN}ECR repository already exists!${NC}"
+fi
+
+# Build and push Docker image
+echo -e "${GREEN}Building and pushing Docker image...${NC}"
+# Get ECR login token
+aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+# Build Docker image from backend
+cd backend
+echo -e "${YELLOW}Building Docker image from $PWD...${NC}"
+docker build -t $ECR_REPOSITORY_NAME:latest .
+
+# Tag and push the image
+echo -e "${YELLOW}Tagging and pushing image to ECR...${NC}"
+docker tag $ECR_REPOSITORY_NAME:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:latest
+docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:latest
+cd ..
 
 echo -e "${GREEN}Creating CloudFormation stack...${NC}"
 

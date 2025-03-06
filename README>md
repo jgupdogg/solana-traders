@@ -1,0 +1,82 @@
+# Solana Traders Dashboard
+
+A standalone dashboard for tracking Solana whale activity. This dashboard is designed to work both independently and as part of the Agent Alpha platform.
+
+## Features
+
+- **Real-time Whale Activity**: Track significant buy and sell transactions for Solana tokens
+- **Visual Summary**: View key metrics with animated, responsive cards
+- **Detailed Activity Table**: Examine transaction details with filtering options
+- **Dark/Light Mode**: Automatically adapts to system preferences or manual selection
+- **Responsive Design**: Works on desktop and mobile devices
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+ and npm/yarn
+- Modern web browser
+
+### Installation
+
+1. Clone the repository (or copy the files to your project)
+```bash
+git clone https://github.com/yourusername/solana-traders-dashboard.git
+cd solana-traders-dashboard
+```
+
+2. Install dependencies
+```bash
+npm install
+```
+
+3. Start the development server
+```bash
+npm run dev
+```
+
+4. Open your browser to the URL shown in the terminal (typically http://localhost:5173)
+
+## Environment Configuration
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```
+# Local development
+VITE_API_BASE_URL=http://localhost:8000/api
+```
+
+For production, create a `.env.production` file:
+
+```
+# Production
+VITE_API_BASE_URL=https://your-api-endpoint.com/api
+```
+
+## Connecting to Real Data
+
+By default, the dashboard uses mock data for development. To connect to your real Snowflake database:
+
+1. Open `src/services/SnowflakeClient.ts`
+2. Change `this.useMockData = true;` to `this.useMockData = false;`
+3. Ensure your API is properly configured and running
+
+## Building for Production
+
+```bash
+npm run build
+```
+
+This will create a `dist` directory with optimized production files that can be deployed to any static hosting service.
+
+## Embedding in Another Application
+
+To embed this dashboard in another React application:
+
+1. Copy the `src/pages/SolanaTraders.tsx` component and its dependencies
+2. Import and use the component in your application
+3. Ensure your application has the required dependencies (MUI, Framer Motion, etc.)
+
+## Credits
+
+Developed by Justin Gupta at Agent Alpha

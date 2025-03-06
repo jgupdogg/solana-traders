@@ -1,6 +1,6 @@
 // src/pages/SolanaTraders.tsx
 import React, { useState, useEffect, useContext } from 'react';
-import { Typography, Box, Grid, Card, CardContent } from '@mui/material';
+import { Typography, Box, Grid } from '@mui/material';
 import { FaExchangeAlt, FaChartLine, FaWallet } from 'react-icons/fa';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { motion } from 'framer-motion';
@@ -10,25 +10,12 @@ import SnowflakeClient, { WhaleNotification } from '../services/SnowflakeClient'
 
 const SolanaTraders: React.FC = () => {
   const { theme } = useContext(ThemeContext);
+  const isDark = theme === 'dark';
   const [loading, setLoading] = useState<boolean>(true);
   const [whaleData, setWhaleData] = useState<WhaleNotification[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // Define theme-based classes using Tailwind color names
-  const textColor = theme === 'dark' ? 'text-textLight' : 'text-textDark';
-  const secondaryTextColor = theme === 'dark' ? 'text-gray-300' : 'text-gray-600';
-  const bgColor1 = theme === 'dark' ? 'bg-darkBg' : 'bg-lightBg';
-  const oddBlockBg = theme === 'dark' ? 'bg-oddBlockDark' : 'bg-oddBlock';
-  const evenBlockBg = theme === 'dark' ? 'bg-evenBlockDark' : 'bg-evenBlock';
-
-  // Define gradient classes based on the theme
-  const gradientClasses = theme === 'dark'
-    ? 'from-oddBlockDark to-evenBlockDark'
-    : 'from-oddBlock to-evenBlock';
-
-  const gradientTextColor = theme === 'dark' ? 'text-white' : 'text-textDark';
-
-  // Fetch data from Snowflake (mock service for now)
+  // Fetch data from Snowflake
   useEffect(() => {
     const fetchWhaleData = async () => {
       setLoading(true);
@@ -57,13 +44,13 @@ const SolanaTraders: React.FC = () => {
   const netActivity = totalBuys - totalSells;
 
   return (
-    <div className={`relative min-h-screen flex flex-col items-center ${bgColor1}`}>
+    <div className={`relative min-h-screen flex flex-col items-center ${isDark ? 'bg-drab-brown' : 'bg-light-bg'}`}>
       {/* Hero Section */}
-      <section className={`w-full flex flex-col items-center justify-center py-24 bg-gradient-to-r ${gradientClasses} ${gradientTextColor} mb-8`}>
-        <Typography variant="h2" className="font-bold mb-4">
+      <section className={`w-full flex flex-col items-center justify-center py-24 ${isDark ? 'bg-gradient-to-r from-ebony to-cool-gray' : 'bg-gradient-to-r from-cool-gray-light to-columbia-blue'} mb-8`}>
+        <Typography variant="h2" className="font-bold mb-4 text-white">
           Solana Traders Tracking
         </Typography>
-        <Typography variant="h6">
+        <Typography variant="h6" className="text-white">
           Monitor whale activity and trading patterns on Solana
         </Typography>
       </section>
@@ -82,9 +69,9 @@ const SolanaTraders: React.FC = () => {
               title="Tracked Tokens"
               value={uniqueTokens}
               loading={loading}
-              icon={<FaWallet className={textColor} />}
-              className={oddBlockBg}
-              textColor={textColor}
+              icon={<FaWallet className={isDark ? 'text-columbia-blue' : 'text-drab-brown'} />}
+              className={isDark ? 'bg-ebony' : 'bg-cool-gray-light'}
+              textColor={isDark ? 'text-columbia-blue' : 'text-drab-brown'}
             />
           </Grid>
           
@@ -93,9 +80,9 @@ const SolanaTraders: React.FC = () => {
               title="Buy Transactions"
               value={totalBuys}
               loading={loading}
-              icon={<FaChartLine className={textColor} />}
-              className={evenBlockBg}
-              textColor={textColor}
+              icon={<FaChartLine className={isDark ? 'text-columbia-blue' : 'text-drab-brown'} />}
+              className={isDark ? 'bg-cool-gray' : 'bg-columbia-blue'}
+              textColor={isDark ? 'text-columbia-blue' : 'text-drab-brown'}
             />
           </Grid>
           
@@ -104,9 +91,9 @@ const SolanaTraders: React.FC = () => {
               title="Sell Transactions"
               value={totalSells}
               loading={loading}
-              icon={<FaExchangeAlt className={textColor} />}
-              className={oddBlockBg}
-              textColor={textColor}
+              icon={<FaExchangeAlt className={isDark ? 'text-columbia-blue' : 'text-drab-brown'} />}
+              className={isDark ? 'bg-ebony' : 'bg-cool-gray-light'}
+              textColor={isDark ? 'text-columbia-blue' : 'text-drab-brown'}
             />
           </Grid>
           
@@ -115,16 +102,16 @@ const SolanaTraders: React.FC = () => {
               title="Net Activity"
               value={netActivity > 0 ? `+${netActivity}` : netActivity}
               loading={loading}
-              icon={<FaChartLine className={textColor} />}
-              className={evenBlockBg}
-              textColor={textColor}
+              icon={<FaChartLine className={isDark ? 'text-columbia-blue' : 'text-drab-brown'} />}
+              className={isDark ? 'bg-cool-gray' : 'bg-columbia-blue'}
+              textColor={isDark ? 'text-columbia-blue' : 'text-drab-brown'}
             />
           </Grid>
         </Grid>
 
         {/* Whale Activity Table */}
-        <Box className={`p-6 rounded-lg shadow-lg ${evenBlockBg} mb-8`}>
-          <Typography variant="h4" className={`font-semibold mb-4 ${textColor}`}>
+        <Box className={`p-6 rounded-lg shadow-lg mb-8 ${isDark ? 'bg-cool-gray' : 'bg-columbia-blue'}`}>
+          <Typography variant="h4" className={`font-semibold mb-4 ${isDark ? 'text-columbia-blue' : 'text-drab-brown'}`}>
             Recent Whale Activity
           </Typography>
           
@@ -132,22 +119,22 @@ const SolanaTraders: React.FC = () => {
             data={whaleData}
             loading={loading}
             error={error}
-            textColor={textColor}
-            secondaryTextColor={secondaryTextColor}
+            textColor={isDark ? 'text-columbia-blue' : 'text-drab-brown'}
+            secondaryTextColor={isDark ? 'text-gray-300' : 'text-gray-600'}
           />
         </Box>
 
         {/* Description Section */}
-        <Box className={`p-6 rounded-lg shadow-lg ${oddBlockBg} mb-8`}>
-          <Typography variant="h4" className={`font-semibold mb-4 ${textColor}`}>
+        <Box className={`p-6 rounded-lg shadow-lg mb-8 ${isDark ? 'bg-ebony' : 'bg-cool-gray-light'}`}>
+          <Typography variant="h4" className={`font-semibold mb-4 ${isDark ? 'text-columbia-blue' : 'text-drab-brown'}`}>
             About This Dashboard
           </Typography>
-          <Typography variant="body1" className={secondaryTextColor}>
+          <Typography variant="body1" className={isDark ? 'text-gray-300' : 'text-gray-600'}>
             This dashboard monitors whale trading activity on the Solana blockchain. We track significant buy and sell transactions 
             for popular Solana tokens to identify market trends and potential price movements. The data is collected 
             in real-time and stored in our Snowflake database for analysis.
           </Typography>
-          <Typography variant="body1" className={`mt-4 ${secondaryTextColor}`}>
+          <Typography variant="body1" className={`mt-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
             Use this information to identify which tokens are attracting trading activity from large wallets, 
             which can sometimes foreshadow broader market movements. This dashboard is part of our comprehensive 
             blockchain analytics suite at Agent Alpha.
