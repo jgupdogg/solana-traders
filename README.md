@@ -1,15 +1,107 @@
 # Solana Traders Dashboard
 
-A standalone dashboard for tracking Solana whale trading activity.
+A modern, standalone dashboard for monitoring whale trading activity on the Solana blockchain. This application provides real-time insights into significant trading patterns that can indicate future price movements.
+
+![Solana Traders Dashboard](https://i.imgur.com/placeholder.png)
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Architecture](#architecture)
+- [AWS Deployment Strategy](#aws-deployment-strategy)
+  - [Deployment Architecture](#deployment-architecture)
+  - [Why This Approach](#why-this-approach)
+  - [Avoided Pitfalls](#avoided-pitfalls)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Local Development](#local-development)
+  - [Deployment](#deployment)
+- [Maintenance and Updates](#maintenance-and-updates)
+- [Troubleshooting](#troubleshooting)
+
+## Overview
+
+Solana Traders Dashboard monitors and visualizes whale trading activity by tracking significant buy and sell transactions for popular Solana tokens. The data is sourced from Snowflake warehouses to identify market trends and potential price movements.
 
 ## Features
 
 - **Real-time Monitoring**: Track whale trading activity on the Solana blockchain
 - **Dark/Light Mode**: Supports both dark and light themes with system preference detection
 - **Responsive Design**: Works on desktop and mobile devices
-- **Interactive UI**: Hover effects and clean, modern design
+- **Interactive UI**: Clean, modern design with hover effects and clear data visualization
+- **Serverless Architecture**: Deployed on AWS using modern cloud-native patterns
+- **Container-based Backend**: FastAPI backend deployed as a containerized Lambda function
+
+## Architecture
+
+The application consists of the following components:
+
+### Frontend
+- **React** SPA built with **Vite** and **TypeScript**
+- **TailwindCSS** for styling
+- **React Context API** for state management
+- Hosted on **S3** and distributed via **CloudFront**
+
+### Backend
+- **FastAPI** REST API for data access
+- **Snowflake** database integration for blockchain data
+- Packaged as a **Docker container** and deployed to AWS Lambda
+- API Gateway triggers for HTTP access
+
+### Infrastructure
+- **AWS CloudFormation** for infrastructure as code
+- **S3** for static frontend hosting
+- **CloudFront** for global content distribution
+- **Lambda** (container-based) for serverless backend
+- **API Gateway** for RESTful API endpoints
+- **ECR** for Docker image storage
+- **CloudWatch** for logging and monitoring
+
+## AWS Deployment Strategy
+
+### Deployment Architecture
+
+Our deployment approach uses AWS CloudFormation to create a production-ready infrastructure stack:
+
+1. **Frontend**: Static React files hosted in S3, distributed through CloudFront for global caching
+2. **Backend**: Container-based Lambda functions triggered by API Gateway, pulling data from Snowflake
+
+The container-based Lambda approach allows us to package complex dependencies (FastAPI, Snowflake client) without dealing with Lambda layers.
+
+### Why This Approach
+
+We chose this specific deployment pattern for several reasons:
+
+1. **Serverless Benefits**: No servers to manage, auto-scaling, and pay-per-use pricing
+2. **Container Simplicity**: Using containers eliminates dependency complexities that often plague Python Lambda functions
+3. **CloudFormation for IaC**: Infrastructure as code ensures consistency and repeatability
+4. **Separation of Concerns**: Two-step deployment process resolves circular dependencies in CloudFormation
+5. **Cost Effective**: Serverless + S3/CloudFront is extremely cost-effective for this type of application
+
+### Avoided Pitfalls
+
+During deployment, we successfully navigated several common pitfalls:
+
+1. **Circular Dependencies**: Traditional CloudFormation approaches often fail when Lambda images depend on ECR repositories created by the same stack. We solved this by creating a bootstrap process that creates the ECR repository and uploads images before CloudFormation execution.
+
+2. **Cold Start Performance**: Container-based Lambdas can have longer cold starts. We addressed this by optimizing our base image and setting appropriate memory settings.
+
+3. **CORS Issues**: Frontend-to-backend communication can be blocked by CORS. We implemented comprehensive CORS settings in our FastAPI application to allow CloudFront origins.
+
+4. **Environment Configuration**: We created separate environment configurations for development and production to ensure the right API endpoints are used.
+
+5. **CloudFront Caching**: Frontend updates can be delayed by CloudFront caching. We integrated cache invalidation into our deployment process.
 
 ## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- Python 3.9+
+- Docker
+- AWS CLI configured with appropriate credentials
+- Snowflake account and credentials (for data access)
 
 ### Local Development
 
@@ -19,101 +111,114 @@ git clone https://github.com/yourusername/solana-traders-dashboard.git
 cd solana-traders-dashboard
 ```
 
-2. Install dependencies:
+2. Install frontend dependencies:
 ```bash
 npm install
 ```
 
-3. Start the development server:
+3. Set up backend:
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+4. Create a `.env` file with your Snowflake credentials:
+```
+SNOWFLAKE_ACCOUNT=your_account
+SNOWFLAKE_USER=your_user
+SNOWFLAKE_PASSWORD=your_password
+SNOWFLAKE_WAREHOUSE=your_warehouse
+SNOWFLAKE_DATABASE=your_database
+SNOWFLAKE_SCHEMA=your_schema
+SNOWFLAKE_ROLE=your_role
+```
+
+5. Start the backend:
+```bash
+uvicorn app:app --reload
+```
+
+6. Start the frontend (in a separate terminal):
 ```bash
 npm run dev
 ```
 
-4. Open your browser to http://localhost:3000
+7. Open your browser to http://localhost:5173
 
-### Finalizing Setup
+### Deployment
 
-To clean up the project and prepare it for production:
+We've created two scripts to simplify deployment:
 
-```bash
-chmod +x finalize.sh
-./finalize.sh
-```
+#### Initial Deployment
 
-This will:
-- Remove unnecessary files and dependencies
-- Create clean, final versions of all configuration files
-- Set up proper data structures and mock services
-
-### Building for Production
+For first-time setup:
 
 ```bash
-npm run build
+chmod +x bootstrap.sh
+./bootstrap.sh
+
+# Follow the instructions at the end of bootstrap.sh output
 ```
 
-The built files will be in the `dist` directory.
+This script:
+1. Creates the ECR repository
+2. Builds and pushes the initial Docker image
+3. Creates the CloudFormation template with the correct image URI
+4. Provides the command to create the CloudFormation stack
 
-### Deploying to AWS
+#### Subsequent Updates
 
-The project includes a deployment script for AWS:
+For ongoing updates:
 
 ```bash
-chmod +x build-deploy.sh
-./build-deploy.sh
+chmod +x deploy.sh
+./deploy.sh
 ```
 
-This will:
-1. Build the application
-2. Get S3 bucket name and CloudFront distribution ID from your CloudFormation stack
-3. Upload files to S3
-4. Invalidate CloudFront cache
+This script:
+1. Builds and pushes a new Docker image
+2. Updates the Lambda function
+3. Builds and deploys frontend changes
+4. Invalidates the CloudFront cache
 
-## Project Structure
+## Maintenance and Updates
 
-- `src/`
-  - `contexts/`: React contexts including `ThemeContext` for theme management
-  - `pages/`: Page components including the main `SolanaTraders` dashboard
-  - `services/`: Services for data fetching, including `SnowflakeClient`
-  - `index.css`: Main CSS file with Tailwind directives
-  - `main.tsx`: Application entry point
-  - `colors.js`: Color palette definition
-- `public/`: Static assets
-- `tailwind.config.js`: Tailwind CSS configuration
-- `postcss.config.js`: PostCSS configuration
-- `vite.config.js`: Vite configuration
+To update the application:
 
-## Connecting to Real API
-
-By default, the dashboard uses mock data. To connect to a real API:
-
-1. Open `src/services/SnowflakeClient.ts`
-2. Set `this.useMockData = false;`
-3. Ensure your API base URL is correctly set in the `.env` file
-
-## Environment Variables
-
-Create a `.env.local` file for development:
-```
-VITE_API_BASE_URL=http://localhost:8000/api
+1. Make your code changes
+2. Run the deployment script:
+```bash
+./deploy.sh
 ```
 
-For production, create `.env.production`:
+To monitor the application:
+
+1. View CloudWatch logs for Lambda:
+```bash
+aws logs filter-log-events --log-group-name /aws/lambda/solana-traders-stack-dev-function
 ```
-VITE_API_BASE_URL=https://your-api-domain.com/api
+
+2. Check CloudFront distribution status:
+```bash
+aws cloudfront get-distribution --id YOUR_DISTRIBUTION_ID
 ```
 
-## Color Scheme
+## Troubleshooting
 
-The dashboard uses a custom color scheme:
+If you encounter issues with the deployment:
 
-- Primary (Drab Brown): `#3E442B`
-- Secondary (Ebony): `#6A7062`
-- Accent (Cool Gray): `#8D909B`
-- Light UI (Columbia Blue): `#D6EEFF`
-- Light UI 2 (Cool Gray Light): `#AAADC4`
+1. **CORS Errors**: Ensure the CloudFront domain is listed in the CORS middleware configuration in `app.py`
 
-These colors are defined in `src/colors.js` and available as Tailwind classes.
+2. **API Connection Issues**: Check environment variables in the frontend build. Make sure `.env.production` contains the correct API URL.
 
-## License
+3. **Lambda Errors**: Examine CloudWatch logs for detailed error messages
 
-[MIT License](LICENSE)
+4. **Container Build Issues**: Make sure Docker is running and properly configured
+
+5. **Database Connection**: Verify Snowflake credentials are correctly stored in AWS Parameter Store
+
+For more troubleshooting help, see the detailed error logs in CloudWatch or reach out to the development team.
+
+---
+
+Built with ❤️ by Your Team
