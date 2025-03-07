@@ -1,8 +1,10 @@
 FROM public.ecr.aws/lambda/python:3.9
 
-# Install dependencies
+# Copy requirements file
 COPY requirements.txt ${LAMBDA_TASK_ROOT}
-RUN pip install -r requirements.txt
+
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
 COPY app.py ${LAMBDA_TASK_ROOT}

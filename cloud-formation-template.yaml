@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Solana Traders Dashboard - Complete Infrastructure'
+Description: 'Solana Traders Dashboard - Using Container-based Lambda'
 
 Parameters:
   Environment:
@@ -7,40 +7,51 @@ Parameters:
     Default: dev
     AllowedValues:
       - dev
-      - staging
       - prod
-    Description: Deployment environment
+    Description: Deployment environment (simplified to just dev/prod)
 
-  ECRRepositoryName:
+  S3BucketPrefix:
     Type: String
-    Default: solana-traders-api
-    Description: Name of the ECR repository for the backend
+    Default: solana-traders
+    Description: Base name of the S3 bucket for frontend hosting
 
-  S3BucketName:
-    Type: String
-    Default: solana-traders-dashboard
-    Description: Name of the S3 bucket for frontend hosting
+Conditions:
+  IsProd: !Equals [!Ref Environment, "prod"]
 
 Resources:
   #-----------------------
   # Frontend Resources
   #-----------------------
   
-  # S3 Bucket for frontend hosting
+  # S3 Bucket for frontend hosting with basic encryption
   FrontendBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Ref S3BucketName
+      # Using intrinsic function to generate a partially random name with the stack ID
+      BucketName: !Join 
+        - '-'
+        - - !Ref S3BucketPrefix
+          - frontend
+          - !Select [0, !Split ["-", !Select [2, !Split ["/", !Ref "AWS::StackId"]]]]
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: index.html
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
 
   # CloudFront Origin Access Identity
   CloudFrontOAI:
     Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
     Properties:
       CloudFrontOriginAccessIdentityConfig:
-        Comment: !Sub "OAI for ${S3BucketName}"
+        Comment: !Sub "OAI for ${AWS::StackName}"
 
   # Bucket policy for CloudFront access
   FrontendBucketPolicy:
@@ -55,15 +66,15 @@ Resources:
             Principal:
               CanonicalUser: !GetAtt CloudFrontOAI.S3CanonicalUserId
             Action: "s3:GetObject"
-            Resource: !Sub "arn:aws:s3:::${S3BucketName}/*"
+            Resource: !Sub "arn:aws:s3:::${FrontendBucket}/*"
 
-  # CloudFront distribution
+  # CloudFront distribution - cost optimized
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
         Origins:
-          - DomainName: !Sub "${S3BucketName}.s3.amazonaws.com"
+          - DomainName: !GetAtt FrontendBucket.DomainName
             Id: S3Origin
             S3OriginConfig:
               OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOAI}"
@@ -77,6 +88,9 @@ Resources:
               Forward: none
           ViewerProtocolPolicy: redirect-to-https
           Compress: true
+          MinTTL: 86400        # 1 day
+          DefaultTTL: 86400    # 1 day
+          MaxTTL: 31536000     # 1 year
         CustomErrorResponses:
           - ErrorCode: 403
             ResponseCode: 200
@@ -84,26 +98,42 @@ Resources:
           - ErrorCode: 404
             ResponseCode: 200
             ResponsePagePath: /index.html
-        PriceClass: PriceClass_100
+        PriceClass: PriceClass_100  # Use only US, Canada, Europe, & Israel edge locations
+        HttpVersion: http2
+        IPV6Enabled: true
 
   #-----------------------
   # Backend Resources
   #-----------------------
   
-  # ECR Repository
+  # ECR Repository for Lambda container images
   ECRRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: !Ref ECRRepositoryName
-      ImageScanningConfiguration:
-        ScanOnPush: true
-
-  # IAM Role for Lambda with unique name
+      RepositoryName: !Sub "${AWS::StackName}-repo"
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+              "rules": [
+                  {
+                      "rulePriority": 1,
+                      "description": "Keep only latest 5 images",
+                      "selection": {
+                          "tagStatus": "any",
+                          "countType": "imageCountMoreThan",
+                          "countNumber": 5
+                      },
+                      "action": {
+                          "type": "expire"
+                      }
+                  }
+              ]
+          }
+      
+  # Lambda execution role with minimal permissions
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      # Using !Sub with AWS::StackName ensures role name is unique
-      RoleName: !Sub "${AWS::StackName}-lambda-role"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -124,21 +154,26 @@ Resources:
                 Resource:
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/solana-traders/snowflake/*"
 
-  # Lambda Function with updated image reference
+  # Lambda Function - Container based
   LambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub "${AWS::StackName}-function"
       PackageType: Image
       Code:
-        # Reference the image you pushed to ECR
-        ImageUri: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}:latest"
+        # This is a placeholder - we'll update this with the actual ECR image in the deployment script
+        ImageUri: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}:latest"
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 30
-      MemorySize: 256
+      MemorySize: !If [IsProd, 256, 128]
       Environment:
         Variables:
           ENVIRONMENT: !Ref Environment
+          LOG_LEVEL: !If [IsProd, "INFO", "DEBUG"]
+          CORS_ALLOWED_ORIGINS: !If 
+            - IsProd
+            - !Sub "https://${CloudFrontDistribution.DomainName}"
+            - "*"
 
   # API Gateway REST API
   ApiGateway:
@@ -225,6 +260,13 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/${Environment}/*"
 
+  # CloudWatch Log Group with retention
+  LambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${LambdaFunction}"
+      RetentionInDays: !If [IsProd, 30, 7]
+
 Outputs:
   FrontendURL:
     Description: URL of the CloudFront distribution
@@ -246,6 +288,10 @@ Outputs:
     Description: Name of the Lambda function
     Value: !Ref LambdaFunction
   
+  ECRRepositoryName:
+    Description: Name of the ECR repository
+    Value: !Ref ECRRepository
+    
   ECRRepositoryUri:
     Description: URI of the ECR repository
-    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}"
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}"
