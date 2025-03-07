@@ -106,30 +106,6 @@ Resources:
   # Backend Resources
   #-----------------------
   
-  # ECR Repository for Lambda container images
-  ECRRepository:
-    Type: AWS::ECR::Repository
-    Properties:
-      RepositoryName: !Sub "${AWS::StackName}-repo"
-      LifecyclePolicy:
-        LifecyclePolicyText: |
-          {
-              "rules": [
-                  {
-                      "rulePriority": 1,
-                      "description": "Keep only latest 5 images",
-                      "selection": {
-                          "tagStatus": "any",
-                          "countType": "imageCountMoreThan",
-                          "countNumber": 5
-                      },
-                      "action": {
-                          "type": "expire"
-                      }
-                  }
-              ]
-          }
-      
   # Lambda execution role with minimal permissions
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -154,15 +130,14 @@ Resources:
                 Resource:
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/solana-traders/snowflake/*"
 
-  # Lambda Function - Container based
+  # Lambda Function - Using pre-built container image
   LambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub "${AWS::StackName}-function"
       PackageType: Image
       Code:
-        # This is a placeholder - we'll update this with the actual ECR image in the deployment script
-        ImageUri: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}:latest"
+        ImageUri: CONTAINER_IMAGE_PLACEHOLDER
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 30
       MemorySize: !If [IsProd, 256, 128]
@@ -287,11 +262,3 @@ Outputs:
   LambdaFunctionName:
     Description: Name of the Lambda function
     Value: !Ref LambdaFunction
-  
-  ECRRepositoryName:
-    Description: Name of the ECR repository
-    Value: !Ref ECRRepository
-    
-  ECRRepositoryUri:
-    Description: URI of the ECR repository
-    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}"

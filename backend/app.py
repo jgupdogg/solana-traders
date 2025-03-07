@@ -23,6 +23,7 @@ app = FastAPI(title="Solana Traders API", description="API for Solana Traders Da
 
 # Configure CORS - explicitly allow localhost domains
 # Update CORS middleware to include API Gateway domain
+# Update this section in your app.py file
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -30,13 +31,16 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:5173",  # Vite dev server
         "http://127.0.0.1:5173",
-        "https://b6erx3uy97.execute-api.us-east-1.amazonaws.com",  # Add your API Gateway domain
+        "https://vu3lnp4rzl.execute-api.us-east-1.amazonaws.com",
+        "https://d1guvykrnqwa75.cloudfront.net",  # CloudFront URL
+        "*",  # Allow all origins for testing - REMOVE THIS IN PRODUCTION
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["*"]
 )
+
 # Pydantic models for data validation and serialization
 class WhaleNotification(BaseModel):
     NOTIFICATION_ID: int

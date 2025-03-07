@@ -1,70 +1,48 @@
 // src/pages/SolanaTraders.tsx
 import React, { useState, useEffect, useContext } from 'react';
 import { ThemeContext } from '../contexts/ThemeContext';
-
-// Mock data interface
-interface WhaleNotification {
-  NOTIFICATION_ID: number;
-  TIMESTAMP: string;
-  ADDRESS: string;
-  SYMBOL: string;
-  NAME: string;
-  TIME_INTERVAL: string;
-  NUM_USERS_BOUGHT: number;
-  NUM_USERS_SOLD: number;
-  INSERTED_AT: string;
-}
-
-// Mock data
-const mockWhaleData: WhaleNotification[] = [
-  {
-    NOTIFICATION_ID: 1,
-    TIMESTAMP: new Date().toISOString(),
-    ADDRESS: '0x7a250d5630b4cf539739df2c5dacb4c659f2488d',
-    SYMBOL: 'SOL',
-    NAME: 'Solana',
-    TIME_INTERVAL: '1h',
-    NUM_USERS_BOUGHT: 245,
-    NUM_USERS_SOLD: 124,
-    INSERTED_AT: new Date().toISOString()
-  },
-  {
-    NOTIFICATION_ID: 2,
-    TIMESTAMP: new Date(Date.now() - 3600000).toISOString(),
-    ADDRESS: '0x6b175474e89094c44da98b954eedeac495271d0f',
-    SYMBOL: 'BONK',
-    NAME: 'Bonk',
-    TIME_INTERVAL: '1h',
-    NUM_USERS_BOUGHT: 187,
-    NUM_USERS_SOLD: 203,
-    INSERTED_AT: new Date(Date.now() - 3600000).toISOString()
-  },
-  {
-    NOTIFICATION_ID: 3,
-    TIMESTAMP: new Date(Date.now() - 7200000).toISOString(),
-    ADDRESS: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-    SYMBOL: 'JUP',
-    NAME: 'Jupiter',
-    TIME_INTERVAL: '1h',
-    NUM_USERS_BOUGHT: 312,
-    NUM_USERS_SOLD: 98,
-    INSERTED_AT: new Date(Date.now() - 7200000).toISOString()
-  }
-];
+import snowflakeClient, { WhaleNotification } from '../services/SnowflakeClient';
 
 const SolanaTraders: React.FC = () => {
   const { theme, toggleTheme } = useContext(ThemeContext);
   const [whaleData, setWhaleData] = useState<WhaleNotification[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Log env variables for debugging
   useEffect(() => {
-    // Simulate API call with setTimeout
-    const timer = setTimeout(() => {
-      setWhaleData(mockWhaleData);
-      setLoading(false);
-    }, 500);
-    
-    return () => clearTimeout(timer);
+    console.log('Environment check:');
+    console.log('API Base URL:', import.meta.env.VITE_API_BASE_URL || 'Not set');
+    console.log('Mode:', import.meta.env.MODE);
+    console.log('Production?', import.meta.env.PROD);
+  }, []);
+
+  // Fetch data from API
+  useEffect(() => {
+    const fetchData = async () => {
+      console.log('Attempting to fetch data from API...');
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const data = await snowflakeClient.getWhaleNotifications(10);
+        console.log('API Data received:', data);
+        
+        if (data && Array.isArray(data)) {
+          setWhaleData(data);
+        } else {
+          console.error('Received invalid data format:', data);
+          setError('Received invalid data format from API');
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setError(`Failed to fetch data: ${error instanceof Error ? error.message : String(error)}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
   // Calculate summary metrics
@@ -124,6 +102,24 @@ const SolanaTraders: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+        ) : error ? (
+          <div className="bg-red-100 dark:bg-red-900 p-4 rounded-lg mb-8">
+            <h2 className="text-xl font-bold text-red-800 dark:text-red-200 mb-2">Error Loading Data</h2>
+            <p className="text-red-700 dark:text-red-300">{error}</p>
+            <p className="mt-2">
+              <button 
+                onClick={() => window.location.reload()} 
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                Retry
+              </button>
+            </p>
+          </div>
+        ) : whaleData.length === 0 ? (
+          <div className="text-center p-12">
+            <h2 className="text-2xl font-bold text-textDark dark:text-textLight mb-4">No Data Available</h2>
+            <p className="text-textDark dark:text-textLight">There is currently no whale activity data to display.</p>
           </div>
         ) : (
           <>
