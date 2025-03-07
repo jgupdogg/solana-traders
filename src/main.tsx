@@ -1,11 +1,9 @@
-// src/main-standalone.tsx - Simplified standalone entry point
+// src/main.tsx - Simple entry point without react-router-dom
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { ThemeProvider } from './contexts/ThemeContext';
-import SolanaTraders from './pages/SolanaTradersComplete';
+import SolanaTraders from './pages/SolanaTraders';
 import './index.css';
-import './theme-variables.css';
-import './App.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

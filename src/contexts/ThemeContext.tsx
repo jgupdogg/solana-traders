@@ -13,9 +13,20 @@ export const ThemeContext = createContext<ThemeContextProps>({
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Initialize theme based on local storage or default to 'light'
-  const [theme, setTheme] = useState<string>(
-    localStorage.getItem('theme') || 'light'
-  );
+  const [theme, setTheme] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme');
+      // Check user preference
+      if (savedTheme) {
+        return savedTheme;
+      }
+      // Check system preference
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return 'dark';
+      }
+    }
+    return 'light';
+  });
 
   useEffect(() => {
     // Update the root element class based on the theme

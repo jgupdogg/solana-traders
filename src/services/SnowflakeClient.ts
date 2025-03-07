@@ -1,128 +1,160 @@
-// src/services/SnowflakeClient.production.ts
-// (Replace SnowflakeClient.ts with this file when deploying to production)
-
-// Types for the whale notification data
+// src/services/SnowflakeClient.ts
 export interface WhaleNotification {
-    NOTIFICATION_ID: number;
-    TIMESTAMP: string;
-    ADDRESS: string;
-    SYMBOL: string;
-    NAME: string;
-    TIME_INTERVAL: string;
-    NUM_USERS_BOUGHT: number;
-    NUM_USERS_SOLD: number;
-    INSERTED_AT: string;
+  NOTIFICATION_ID: number;
+  TIMESTAMP: string;
+  ADDRESS: string;
+  SYMBOL: string;
+  NAME: string;
+  TIME_INTERVAL: string;
+  NUM_USERS_BOUGHT: number;
+  NUM_USERS_SOLD: number;
+  INSERTED_AT: string;
+}
+
+export interface TokenStats {
+  SYMBOL: string;
+  NAME: string;
+  NOTIFICATION_COUNT: number;
+  TOTAL_BUYS: number;
+  TOTAL_SELLS: number;
+  NET_ACTIVITY: number;
+  LATEST_ACTIVITY: string;
+}
+
+// Mock data for testing/development
+const mockWhaleData: WhaleNotification[] = [
+  {
+    NOTIFICATION_ID: 1,
+    TIMESTAMP: new Date().toISOString(),
+    ADDRESS: '0x7a250d5630b4cf539739df2c5dacb4c659f2488d',
+    SYMBOL: 'SOL',
+    NAME: 'Solana',
+    TIME_INTERVAL: '1h',
+    NUM_USERS_BOUGHT: 245,
+    NUM_USERS_SOLD: 124,
+    INSERTED_AT: new Date().toISOString()
+  },
+  {
+    NOTIFICATION_ID: 2,
+    TIMESTAMP: new Date(Date.now() - 3600000).toISOString(),
+    ADDRESS: '0x6b175474e89094c44da98b954eedeac495271d0f',
+    SYMBOL: 'BONK',
+    NAME: 'Bonk',
+    TIME_INTERVAL: '1h',
+    NUM_USERS_BOUGHT: 187,
+    NUM_USERS_SOLD: 203,
+    INSERTED_AT: new Date(Date.now() - 3600000).toISOString()
+  },
+  {
+    NOTIFICATION_ID: 3,
+    TIMESTAMP: new Date(Date.now() - 7200000).toISOString(),
+    ADDRESS: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+    SYMBOL: 'JUP',
+    NAME: 'Jupiter',
+    TIME_INTERVAL: '1h',
+    NUM_USERS_BOUGHT: 312,
+    NUM_USERS_SOLD: 98,
+    INSERTED_AT: new Date(Date.now() - 7200000).toISOString()
   }
-  
-  /**
-   * API base URL should be set in your environment variables
-   * It will point to your FastAPI backend service
-   */
-  // Use environment variable if available, otherwise fallback to localhost
-  const API_BASE_URL = typeof import.meta.env !== 'undefined' 
-    ? (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api')
-    : 'http://localhost:8000/api';
-  
-  /**
-   * Client for the Snowflake data API.
-   * This makes calls to your FastAPI backend service which connects to Snowflake.
-   */
-  class SnowflakeClient {
-    /**
-     * Fetches whale notification data from the API
-     * @param {number} limit Optional number of records to limit the response to
-     * @returns {Promise<WhaleNotification[]>} A promise that resolves to an array of whale notifications
-     */
-    static async getWhaleNotifications(limit = 100): Promise<WhaleNotification[]> {
-      try {
-        console.log(`Fetching data from: ${API_BASE_URL}/whale-notifications?limit=${limit}`);
-        const response = await fetch(`${API_BASE_URL}/whale-notifications?limit=${limit}`, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          },
-          mode: 'cors',
-          credentials: 'same-origin'
-        });
-        
-        if (!response.ok) {
-          // Try to get error details from the response
-          let errorDetail;
-          try {
-            errorDetail = await response.json();
-          } catch (e) {
-            errorDetail = await response.text();
-          }
-          
-          throw new Error(`API request failed with status: ${response.status}, details: ${JSON.stringify(errorDetail)}`);
-        }
-        
-        const data = await response.json();
-        console.log(`Received ${data.length} whale notifications`);
-        return data;
-      } catch (error) {
-        console.error('Error fetching whale notifications:', error);
-        
-        // If it's a CORS error, suggest checking the backend CORS settings
-        if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-          console.error('This could be a CORS issue. Make sure the backend allows requests from this origin.');
-        }
-        
-        throw error;
+];
+
+class SnowflakeClient {
+  private baseUrl: string;
+  private useMockData: boolean;
+
+  constructor() {
+    // Safely access environment variables
+    const envBaseUrl = import.meta.env?.VITE_API_BASE_URL;
+    this.baseUrl = envBaseUrl || 'http://localhost:8000/api';
+    console.log('API Base URL:', this.baseUrl);
+    
+    // Set to true to use mock data, false to use actual API
+    this.useMockData = true; // Change to false when API is ready
+  }
+
+  // Get whale notifications
+  async getWhaleNotifications(limit: number = 100, symbol?: string): Promise<WhaleNotification[]> {
+    // Use mock data if enabled
+    if (this.useMockData) {
+      let data = [...mockWhaleData];
+      
+      if (symbol) {
+        data = data.filter(notification => notification.SYMBOL === symbol);
       }
+      
+      return data.slice(0, limit);
     }
     
-    /**
-     * Fetches a specific number of recent whale notifications
-     * @param {number} limit The number of notifications to fetch
-     * @returns {Promise<WhaleNotification[]>} A promise that resolves to an array of whale notifications
-     */
-    static async getRecentWhaleNotifications(limit: number): Promise<WhaleNotification[]> {
-      return this.getWhaleNotifications(limit);
-    }
-    
-    /**
-     * Fetches token-specific whale notifications
-     * @param {string} symbol The token symbol to filter by
-     * @param {number} limit Optional number of records to limit the response to
-     * @returns {Promise<WhaleNotification[]>} A promise that resolves to an array of whale notifications
-     */
-    static async getTokenWhaleNotifications(symbol: string, limit = 100): Promise<WhaleNotification[]> {
-      try {
-        const response = await fetch(`${API_BASE_URL}/whale-notifications?symbol=${symbol}&limit=${limit}`);
-        
-        if (!response.ok) {
-          throw new Error(`API request failed with status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data;
-      } catch (error) {
-        console.error(`Error fetching whale notifications for token ${symbol}:`, error);
-        throw error;
+    try {
+      let url = `${this.baseUrl}/whale-notifications?limit=${limit}`;
+      if (symbol) {
+        url += `&symbol=${encodeURIComponent(symbol)}`;
       }
-    }
-    
-    /**
-     * Fetches token statistics with aggregated metrics
-     * @returns {Promise<any[]>} A promise that resolves to token statistics
-     */
-    static async getTokenStats(): Promise<any[]> {
-      try {
-        const response = await fetch(`${API_BASE_URL}/token-stats`);
-        
-        if (!response.ok) {
-          throw new Error(`API request failed with status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data;
-      } catch (error) {
-        console.error('Error fetching token stats:', error);
-        throw error;
+
+      console.log('Fetching from URL:', url);
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`API request failed with status: ${response.status}`);
       }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching whale notifications:', error);
+      throw error;
     }
   }
-  
-  export default SnowflakeClient;
+
+  // Get token statistics
+  async getTokenStats(): Promise<TokenStats[]> {
+    // Generate mock stats if mock data is enabled
+    if (this.useMockData) {
+      const stats: TokenStats[] = [
+        {
+          SYMBOL: "SOL",
+          NAME: "Solana",
+          NOTIFICATION_COUNT: 12,
+          TOTAL_BUYS: 1245,
+          TOTAL_SELLS: 824,
+          NET_ACTIVITY: 421,
+          LATEST_ACTIVITY: new Date().toISOString()
+        },
+        {
+          SYMBOL: "BONK",
+          NAME: "Bonk",
+          NOTIFICATION_COUNT: 8,
+          TOTAL_BUYS: 987,
+          TOTAL_SELLS: 1103,
+          NET_ACTIVITY: -116,
+          LATEST_ACTIVITY: new Date(Date.now() - 3600000).toISOString()
+        },
+        {
+          SYMBOL: "JUP",
+          NAME: "Jupiter",
+          NOTIFICATION_COUNT: 10,
+          TOTAL_BUYS: 1512,
+          TOTAL_SELLS: 698,
+          NET_ACTIVITY: 814,
+          LATEST_ACTIVITY: new Date(Date.now() - 7200000).toISOString()
+        }
+      ];
+      
+      return stats;
+    }
+    
+    try {
+      const response = await fetch(`${this.baseUrl}/token-stats`);
+      if (!response.ok) {
+        throw new Error(`API request failed with status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching token stats:', error);
+      throw error;
+    }
+  }
+}
+
+// Create singleton instance
+const snowflakeClient = new SnowflakeClient();
+export default snowflakeClient;
